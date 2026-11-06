@@ -326,7 +326,7 @@ headers = {
     "Ual-Access-Businessid": "projecta",
     "Ual-Access-ProjectA": json.dumps({
         "device_info": {
-            "abis": ["arm64-v8a"],
+            "abis": ["arm64-v8a", "armeabi-v7a"],
             "android_id": "50f838123d9a9c94",
             "brand": "google",
             "country": "US",
