@@ -274,7 +274,6 @@ java -jar "${MORPHE_JAR}" patch \
   --keystore-entry-alias="${KEYSTORE_ALIAS}" \
   --keystore-password="${KEYSTORE_PASSWORD}" \
   --keystore-entry-password="${KEYSTORE_PASSWORD}" \
-  -d "Complete Quests automatically" \
   -d "Complete badges automatically" \
   --out="${FINAL_APK}" \
   "${MERGED_STOCK_APK}"

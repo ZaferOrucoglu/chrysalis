@@ -64,8 +64,16 @@ jobs:
           CHECKSUM_PATH: ${{ steps.build.outputs.checksum_path }}
         run: |
           echo "Publishing release ${TAG_NAME}..."
-          gh release create "${TAG_NAME}" \
-            "${ARTIFACT_PATH}" \
-            "${CHECKSUM_PATH}" \
-            --title "${RELEASE_TITLE}" \
-            --notes "Automated CI/CD build for ${TAG_NAME}."
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Release ${TAG_NAME} already exists. Uploading new assets with --clobber..."
+            gh release upload "${TAG_NAME}" \
+              "${ARTIFACT_PATH}" \
+              "${CHECKSUM_PATH}" \
+              --clobber
+          else
+            gh release create "${TAG_NAME}" \
+              "${ARTIFACT_PATH}" \
+              "${CHECKSUM_PATH}" \
+              --title "${RELEASE_TITLE}" \
+              --notes "Automated CI/CD build for ${TAG_NAME}."
+          fi
