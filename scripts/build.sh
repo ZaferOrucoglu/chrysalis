@@ -359,7 +359,11 @@ if not matches:
     print(f"[-] ERROR: Version {target_ver} not found in upstream repository API.", file=sys.stderr)
     sys.exit(1)
 
-asset = matches[0].get("asset", {})
+arm64_matches = [v for v in matches if "arm64-v8a" in v.get("native_code", [])]
+selected = arm64_matches[0] if arm64_matches else matches[0]
+print(f"    [+] Selected variant: {selected.get('version_name')} (ABI: {selected.get('native_code')})")
+
+asset = selected.get("asset", {})
 download_urls = asset.get("urls", [])
 if not download_urls:
     print("[-] ERROR: Download URL not found in API response.", file=sys.stderr)
@@ -413,6 +417,17 @@ java ${JAVA_OPTS:--Xmx4g -XX:+UseParallelGC} -jar "${TOOLS_DIR}/apkeditor.jar" m
 # 6. Apply Patches & Sign with Private Keystore (Ephemeral Keystore Decoding)
 echo "[+] Executing patcher with private keystore signing..."
 
+# Determine whether to apply native library stripping based on actual merged APK contents
+HAS_ARM64="$(python3 -c 'import zipfile, sys; z=zipfile.ZipFile(sys.argv[1]); sys.exit(0 if any(n.startswith("lib/arm64-v8a/") and n.endswith(".so") for n in z.namelist()) else 1)' "${MERGED_STOCK_APK}" && echo "true" || echo "false")"
+
+STRIP_ARGS=()
+if [ "${HAS_ARM64}" = "true" ]; then
+  echo "[+] Merged APK contains arm64-v8a native libraries: applying --striplibs=arm64-v8a"
+  STRIP_ARGS=(--striplibs=arm64-v8a)
+else
+  echo "[!] Merged APK has no arm64-v8a libs (single-ABI bundle): skipping --striplibs to preserve native libraries."
+fi
+
 if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
   TMP_BASE="/dev/shm"
 else
@@ -432,7 +447,7 @@ java ${JAVA_OPTS:--Xmx4g -XX:+UseParallelGC} -jar "${TOOLS_DIR}/morphe.jar" patc
   --keystore-entry-alias="${KEYSTORE_ALIAS}" \
   --keystore-password="${KEYSTORE_PASSWORD}" \
   --keystore-entry-password="${KEYSTORE_PASSWORD}" \
-  --striplibs=arm64-v8a \
+  "${STRIP_ARGS[@]}" \
   -d "Complete badges automatically" \
   --out="${FINAL_APK}" \
   "${MERGED_STOCK_APK}"
@@ -441,7 +456,23 @@ java ${JAVA_OPTS:--Xmx4g -XX:+UseParallelGC} -jar "${TOOLS_DIR}/morphe.jar" patc
 rm -f "${TEMP_KEYSTORE}"
 TEMP_KEYSTORE=""
 
-# 7. Validate Final Output Signature
+# 7. Native Library Sanity Gate & Output Signature Validation
+echo "[+] Performing native library sanity check on patched artifact..."
+python3 - "${FINAL_APK}" <<'EOF'
+import sys, zipfile
+
+apk_path = sys.argv[1]
+with zipfile.ZipFile(apk_path, "r") as z:
+    so_files = [n for n in z.namelist() if n.startswith("lib/") and n.endswith(".so")]
+    abis = sorted(list(set(n.split("/")[1] for n in so_files if len(n.split("/")) > 2)))
+
+if not so_files:
+    print(f"[-] FATAL: Patched APK contains 0 native libraries! Aborting release.", file=sys.stderr)
+    sys.exit(1)
+
+print(f"[+] Native library sanity check PASSED: found {len(so_files)} .so files across ABI(s): {abis}")
+EOF
+
 echo "[+] Validating output artifact signature..."
 verify_apk_certs "${FINAL_APK}" "${PRIVATE_KEYSTORE_CERT_SHA256}" "apk"
 
