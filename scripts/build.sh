@@ -419,7 +419,10 @@ else
   TMP_BASE="${WORK_DIR}"
 fi
 
-(umask 077 && TEMP_KEYSTORE="$(mktemp "${TMP_BASE}/keystore.XXXXXX.p12")")
+old_umask="$(umask)"
+umask 077
+TEMP_KEYSTORE="$(mktemp "${TMP_BASE}/keystore.XXXXXX.p12")"
+umask "${old_umask}"
 chmod 600 "${TEMP_KEYSTORE}"
 printf "%s" "${KEYSTORE_BASE64}" | base64 -d > "${TEMP_KEYSTORE}"
 
