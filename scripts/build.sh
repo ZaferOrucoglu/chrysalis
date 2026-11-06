@@ -112,7 +112,7 @@ def verify_single_apk(apk_path, display_name):
         print(f"[-] ERROR: apksigner cryptographic verification failed on {display_name}:", file=sys.stderr)
         print(res.stderr or res.stdout, file=sys.stderr)
         return False
-    out_clean = res.stdout.lower().replace(":", "").replace(" ", "")
+    out_clean = (res.stdout + "\n" + res.stderr).lower().replace(":", "").replace(" ", "")
     if expected_sha256 not in out_clean:
         print(f"[-] ERROR: apksigner certificate fingerprint mismatch on {display_name}!", file=sys.stderr)
         print(f"    Expected SHA-256: {expected_sha256}", file=sys.stderr)
@@ -371,7 +371,10 @@ if parsed_url.scheme != "https":
     print(f"[-] ERROR: Insecure download URL scheme: {parsed_url.scheme}", file=sys.stderr)
     sys.exit(1)
 
-expected_size = asset.get("size", 0)
+try:
+    expected_size = int(asset.get("size", 0))
+except (ValueError, TypeError):
+    expected_size = 0
 if os.path.exists(output_path):
     actual_size = os.path.getsize(output_path)
     if (expected_size > 0 and actual_size == expected_size) or (expected_size <= 0 and actual_size > 10000000):
