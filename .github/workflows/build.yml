@@ -1,0 +1,71 @@
+name: Build and Release Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: 'Target version override (leave empty for latest compatible)'
+        required: false
+        type: string
+        default: ''
+      force_build:
+        description: 'Force build even if release tag already exists'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Build Pipeline
+        id: build
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          APP_VERSION: ${{ inputs.app_version }}
+          FORCE_BUILD: ${{ inputs.force_build }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./scripts/build.sh
+
+      - name: Publish GitHub Release
+        if: steps.build.outputs.skip_build != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.build.outputs.tag_name }}
+          RELEASE_TITLE: ${{ steps.build.outputs.release_title }}
+          ARTIFACT_PATH: ${{ steps.build.outputs.artifact_path }}
+          CHECKSUM_PATH: ${{ steps.build.outputs.checksum_path }}
+        run: |
+          echo "Publishing release ${TAG_NAME}..."
+          gh release create "${TAG_NAME}" \
+            "${ARTIFACT_PATH}" \
+            "${CHECKSUM_PATH}" \
+            --title "${RELEASE_TITLE}" \
+            --notes "Automated CI/CD build for ${TAG_NAME}."

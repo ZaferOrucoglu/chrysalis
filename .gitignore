@@ -1,0 +1,37 @@
+# Signing keys and secrets
+*.keystore
+*.jks
+*.p12
+*.pk8
+*.pem
+*.key
+.env
+.env.*
+
+# Build and binary artifacts
+*.apk
+*.apkm
+*.apks
+*.xapk
+*.idsig
+*.jar
+*.mpp
+build/
+dist/
+out/
+tmp/
+work/
+
+# Local agent and context files
+AGENTS.md
+MEMORY.md
+CLAUDE.md
+GEMINI.md
+
+# OS, editor and runtime cache
+.DS_Store
+*.swp
+*~
+__pycache__/
+*.pyc
+.venv/
