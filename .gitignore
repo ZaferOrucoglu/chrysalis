@@ -25,6 +25,7 @@ work/
 # Local agent and context files
 AGENTS.md
 MEMORY.md
+ADDING_APPS.md
 CLAUDE.md
 GEMINI.md
 
