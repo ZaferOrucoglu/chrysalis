@@ -417,17 +417,6 @@ java ${JAVA_OPTS:--Xmx4g -XX:+UseParallelGC} -jar "${TOOLS_DIR}/apkeditor.jar" m
 # 6. Apply Patches & Sign with Private Keystore (Ephemeral Keystore Decoding)
 echo "[+] Executing patcher with private keystore signing..."
 
-# Determine whether to apply native library stripping based on actual merged APK contents
-HAS_ARM64="$(python3 -c 'import zipfile, sys; z=zipfile.ZipFile(sys.argv[1]); sys.exit(0 if any(n.startswith("lib/arm64-v8a/") and n.endswith(".so") for n in z.namelist()) else 1)' "${MERGED_STOCK_APK}" && echo "true" || echo "false")"
-
-STRIP_ARGS=()
-if [ "${HAS_ARM64}" = "true" ]; then
-  echo "[+] Merged APK contains arm64-v8a native libraries: applying --striplibs=arm64-v8a"
-  STRIP_ARGS=(--striplibs=arm64-v8a)
-else
-  echo "[!] Merged APK has no arm64-v8a libs (single-ABI bundle): skipping --striplibs to preserve native libraries."
-fi
-
 if [ -d "/dev/shm" ] && [ -w "/dev/shm" ]; then
   TMP_BASE="/dev/shm"
 else
@@ -447,7 +436,6 @@ java ${JAVA_OPTS:--Xmx4g -XX:+UseParallelGC} -jar "${TOOLS_DIR}/morphe.jar" patc
   --keystore-entry-alias="${KEYSTORE_ALIAS}" \
   --keystore-password="${KEYSTORE_PASSWORD}" \
   --keystore-entry-password="${KEYSTORE_PASSWORD}" \
-  "${STRIP_ARGS[@]}" \
   -d "Complete badges automatically" \
   --out="${FINAL_APK}" \
   "${MERGED_STOCK_APK}"
